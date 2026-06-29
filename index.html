@@ -67,17 +67,26 @@
   .event {
     background:var(--card); border:1px solid var(--line); border-radius:16px;
     padding:14px 16px; margin-bottom:10px; display:flex; gap:14px; align-items:flex-start;
+    cursor:pointer; transition:background .15s;
   }
-  .event.past { opacity:.5; }
+  .event:active { background:#241a3d; }
+  .event.past { opacity:.45; }
   .event.now { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
-  .ev-week { background:var(--accent2); color:#fff; border-radius:12px; min-width:58px; text-align:center;
-    padding:8px 6px; font-weight:800; line-height:1.1; }
+  .event.next { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent), 0 6px 20px rgba(124,58,237,.25); }
+  .ev-date { min-width:64px; text-align:center; }
+  .ev-date .dnum { font-size:24px; font-weight:800; line-height:1; color:var(--text); }
+  .ev-date .dmon { font-size:12px; color:var(--muted); font-weight:600; margin-top:2px; }
+  .ev-date .dyr { font-size:11px; color:var(--muted); margin-top:1px; }
+  .ev-week { background:var(--accent2); color:#fff; border-radius:12px; min-width:54px; text-align:center;
+    padding:8px 6px; font-weight:800; line-height:1.1; align-self:center; }
   .ev-week small { display:block; font-size:11px; font-weight:600; opacity:.8; }
   .ev-body { flex:1; }
   .ev-body .t { font-weight:700; font-size:16px; }
   .ev-body .n { color:var(--muted); font-size:14px; margin-top:3px; white-space:pre-wrap; }
   .ev-body .when { color:var(--accent); font-size:13px; margin-top:5px; font-weight:600; }
-  .ev-del { background:none; border:none; color:#6b5f86; font-size:20px; cursor:pointer; padding:2px 4px; }
+  .ev-del { background:none; border:none; color:#6b5f86; font-size:20px; cursor:pointer; padding:2px 4px; align-self:flex-start; }
+  .hist-divider { display:flex; align-items:center; gap:10px; margin:18px 2px 12px; color:var(--muted); font-size:13px; font-weight:600; }
+  .hist-divider::before,.hist-divider::after { content:""; flex:1; height:1px; background:var(--line); }
   .overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:flex-end; z-index:50; }
   .overlay.show { display:flex; }
   .sheet { background:var(--bg); width:100%; max-width:520px; margin:0 auto; border-radius:24px 24px 0 0;
@@ -85,12 +94,21 @@
   .sheet h3 { font-size:19px; margin-bottom:16px; }
   label.fl { display:block; font-size:14px; color:var(--muted); margin:12px 2px 6px; font-weight:600; }
   input,textarea {
-    width:100%; background:var(--card); border:1px solid var(--line); border-radius:12px;
+    width:100%; max-width:100%; background:var(--card); border:1px solid var(--line); border-radius:12px;
     padding:12px 14px; color:var(--text); font-size:16px; font-family:inherit;
   }
+  input[type="date"] {
+    -webkit-appearance:none; appearance:none;
+    min-width:0; min-height:48px; display:block; text-align:right;
+  }
+  input[type="date"]::-webkit-date-and-time-value { text-align:right; margin:0; }
+  input[type="date"]::-webkit-calendar-picker-indicator { margin:0; }
   textarea { resize:vertical; min-height:70px; }
   .seg { display:flex; gap:8px; }
   .seg input { text-align:center; }
+  .toggle { display:flex; gap:6px; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:4px; margin-top:6px; }
+  .toggle button { flex:1; background:none; border:none; color:var(--muted); font-family:inherit; font-size:15px; font-weight:700; padding:9px; border-radius:9px; cursor:pointer; }
+  .toggle button.on { background:var(--accent2); color:#fff; }
   .actions { display:flex; gap:10px; margin-top:20px; }
   .hint { font-size:12px; color:var(--muted); margin-top:6px; }
 </style>
@@ -108,12 +126,23 @@
     <h3 id="evTitle">תור / בדיקה חדשים</h3>
     <label class="fl">כותרת</label>
     <input id="evT" placeholder="למשל: סקירת מערכות">
-    <label class="fl">שבוע (אופציונלי יום)</label>
-    <div class="seg">
-      <input id="evW" type="number" min="0" max="45" inputmode="numeric" placeholder="שבוע">
-      <input id="evD" type="number" min="0" max="6" inputmode="numeric" placeholder="יום">
+    <label class="fl">איך לקבוע את מועד האירוע?</label>
+    <div class="toggle">
+      <button id="modeDate" class="on" onclick="setEvMode('date')">לפי תאריך</button>
+      <button id="modeWeek" onclick="setEvMode('week')">לפי שבוע</button>
     </div>
-    <p class="hint">האירוע ייקבע לשבוע+יום הזה ביחס לתאריך הווסת.</p>
+    <div id="dateBlock">
+      <label class="fl">תאריך האירוע</label>
+      <input id="evDate" type="date" onchange="updateEvPreview()">
+    </div>
+    <div id="weekBlock" style="display:none">
+      <label class="fl">שבוע + יום (יום אופציונלי)</label>
+      <div class="seg">
+        <input id="evW" type="number" min="0" max="45" inputmode="numeric" placeholder="שבוע" oninput="updateEvPreview()">
+        <input id="evD" type="number" min="0" max="6" inputmode="numeric" placeholder="יום" oninput="updateEvPreview()">
+      </div>
+    </div>
+    <div id="evWeekPreview" class="hint" style="font-size:14px;color:var(--accent);font-weight:700;min-height:18px;margin-top:8px"></div>
     <label class="fl">הערות</label>
     <textarea id="evN" placeholder="פרטים, מיקום, הכנות..."></textarea>
     <div class="actions">
@@ -151,6 +180,50 @@ function daysSince(lmp){
   return Math.floor((a-b)/86400000);
 }
 function fmtDate(d){ return d.toLocaleDateString('he-IL',{day:'numeric',month:'long',year:'numeric'}); }
+
+// today's date at midnight
+function todayMid(){ const t=new Date(); t.setHours(0,0,0,0); return t; }
+// parse 'YYYY-MM-DD' to local midnight Date
+function parseDate(s){ return new Date(s+'T00:00:00'); }
+// get the event's date: prefer stored date; fall back to legacy week/day relative to LMP
+function eventDate(e){
+  if(e.date) return parseDate(e.date);
+  const lmp=getLmp(); const dt=new Date(lmp); dt.setDate(dt.getDate()+(e.w*7+(e.d||0))); return dt;
+}
+// gestational week/day for a given date, relative to LMP
+function gestAt(date){
+  const lmp=getLmp(); const a=new Date(date); a.setHours(0,0,0,0);
+  const b=new Date(lmp); b.setHours(0,0,0,0);
+  const tot=Math.floor((a-b)/86400000);
+  return { w:Math.floor(tot/7), d:tot%7, tot };
+}
+// live preview in the event sheet - works in both modes
+let evMode='date';
+function setEvMode(m){
+  evMode=m;
+  $('modeDate').classList.toggle('on', m==='date');
+  $('modeWeek').classList.toggle('on', m==='week');
+  $('dateBlock').style.display = m==='date'?'block':'none';
+  $('weekBlock').style.display = m==='week'?'block':'none';
+  updateEvPreview();
+}
+function updateEvPreview(){
+  const box=$('evWeekPreview');
+  if(!getLmp()){ box.textContent=''; return; }
+  if(evMode==='date'){
+    const v=$('evDate').value;
+    if(!v){ box.textContent=''; return; }
+    const g=gestAt(parseDate(v));
+    if(g.tot<0){ box.textContent='התאריך לפני תחילת ההיריון'; return; }
+    box.textContent=`גיל היריון בתאריך זה: שבוע ${g.w} + ${g.d} ימים`;
+  } else {
+    const w=parseInt($('evW').value);
+    if(isNaN(w)){ box.textContent=''; return; }
+    const d=parseInt($('evD').value)||0;
+    const lmp=getLmp(); const dt=new Date(lmp); dt.setDate(dt.getDate()+(w*7+d));
+    box.textContent=`התאריך יהיה: ${fmtDate(dt)}`;
+  }
+}
 
 function render(){
   const lmp=getLmp();
@@ -191,7 +264,7 @@ function render(){
       </div>
     </div>
     <div class="section-title">
-      <span>תורים ובדיקות</span>
+      <span>תורים, בדיקות ואירועים</span>
       <button class="btn ghost sm" onclick="openEvent()">+ הוספה</button>
     </div>
     <div id="events"></div>
@@ -202,32 +275,50 @@ function render(){
     </div>
     <input id="importFile" type="file" accept="application/json" style="display:none" onchange="importData(event)">
     <p class="hint" style="text-align:center;margin-top:8px">מומלץ לגבות מדי פעם - iOS עלול למחוק נתונים אם לא נכנסים לאפליקציה כשבוע.</p>`;
-  renderEvents(total);
+  renderEvents();
 }
 
-function renderEvents(today){
+function renderEvents(){
   const box=$('events');
-  const evs=getEvents().sort((a,b)=>(a.w*7+a.d)-(b.w*7+b.d));
-  if(!evs.length){ box.innerHTML=`<div class="empty">עדיין אין תורים או בדיקות.<br>הוסיפי אירוע לשבוע מסוים.</div>`; return; }
-  const lmp=getLmp();
-  box.innerHTML=evs.map(e=>{
-    const evDay=e.w*7+e.d;
-    const diff=evDay-today;
-    let cls='', when='';
-    const dt=new Date(lmp); dt.setDate(dt.getDate()+evDay);
+  const all=getEvents();
+  if(!all.length){ box.innerHTML=`<div class="empty">עדיין אין תורים או בדיקות.<br>הוסיפי אירוע ובחרי תאריך.</div>`; return; }
+  const today=todayMid();
+  // attach computed date, split upcoming vs past
+  const withDate=all.map(e=>({e, dt:eventDate(e)}));
+  const upcoming=withDate.filter(x=>x.dt>=today).sort((a,b)=>a.dt-b.dt);
+  const past=withDate.filter(x=>x.dt<today).sort((a,b)=>b.dt-a.dt); // most recent past first
+
+  const months=['ינו','פבר','מרץ','אפר','מאי','יוני','יולי','אוג','ספט','אוק','נוב','דצמ'];
+  function card(x, isNext){
+    const e=x.e, dt=x.dt;
+    const g=gestAt(dt);
+    const diff=Math.round((dt-today)/86400000);
+    let when, cls='';
     if(diff<0){ cls='past'; when='היה ב-'+fmtDate(dt); }
     else if(diff===0){ cls='now'; when='היום!'; }
-    else { when='בעוד '+diff+' ימים · '+fmtDate(dt); }
-    return `<div class="event ${cls}">
-      <div class="ev-week">${e.w}<small>+${e.d}</small></div>
+    else { when='בעוד '+diff+' ימים'; if(isNext) cls='next'; }
+    // RTL: first DOM child renders on the right -> date on right, week on left
+    return `<div class="event ${cls}" onclick="openEvent('${e.id}')">
+      <div class="ev-date">
+        <div class="dnum">${dt.getDate()}</div>
+        <div class="dmon">${months[dt.getMonth()]}</div>
+        <div class="dyr">${dt.getFullYear()}</div>
+      </div>
       <div class="ev-body">
         <div class="t">${esc(e.t)}</div>
         ${e.n?`<div class="n">${esc(e.n)}</div>`:''}
         <div class="when">${when}</div>
       </div>
-      <button class="ev-del" onclick="delEvent('${e.id}')">✕</button>
+      <div class="ev-week">${g.w}<small>+${g.d}</small></div>
+      <button class="ev-del" onclick="event.stopPropagation();delEvent('${e.id}')">✕</button>
     </div>`;
-  }).join('');
+  }
+
+  let html = upcoming.map((x,i)=>card(x, i===0)).join('');
+  if(past.length){
+    html += `<div class="hist-divider">היסטוריה</div>` + past.map(x=>card(x,false)).join('');
+  }
+  box.innerHTML=html;
 }
 function esc(s){ return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 
@@ -239,18 +330,53 @@ function saveLmp(){ const v=$('lmpInput').value; if(!v){alert('יש לבחור �
 // Event sheet
 function openEvent(id){
   editId=id||null;
-  if(id){ const e=getEvents().find(x=>x.id===id); $('evTitle').textContent='עריכת אירוע'; $('evT').value=e.t; $('evW').value=e.w; $('evD').value=e.d; $('evN').value=e.n||''; }
-  else { $('evTitle').textContent='תור / בדיקה חדשים'; $('evT').value=''; $('evW').value=''; $('evD').value=''; $('evN').value=''; }
+  if(id){
+    const e=getEvents().find(x=>x.id===id);
+    $('evTitle').textContent='עריכת אירוע';
+    $('evT').value=e.t;
+    $('evN').value=e.n||'';
+    if(e.byWeek || (!e.date && e.w!=null)){
+      $('evW').value=e.w; $('evD').value=(e.d||0)?e.d:'';
+      $('evDate').value=eventDate(e).toISOString().slice(0,10);
+      setEvMode('week');
+    } else {
+      $('evDate').value=eventDate(e).toISOString().slice(0,10);
+      $('evW').value=''; $('evD').value='';
+      setEvMode('date');
+    }
+  } else {
+    $('evTitle').textContent='תור / בדיקה / אירוע חדש';
+    $('evT').value=''; $('evDate').value=''; $('evW').value=''; $('evD').value=''; $('evN').value='';
+    setEvMode('date');
+  }
   $('eventOverlay').classList.add('show');
 }
 function closeEvent(){ $('eventOverlay').classList.remove('show'); editId=null; }
 function saveEvent(){
-  const t=$('evT').value.trim(); const w=parseInt($('evW').value); const d=parseInt($('evD').value)||0;
+  const t=$('evT').value.trim();
   if(!t){alert('יש להזין כותרת');return;}
-  if(isNaN(w)){alert('יש להזין שבוע');return;}
+  let date, byWeek=false, w=null, d=0;
+  if(evMode==='week'){
+    w=parseInt($('evW').value);
+    if(isNaN(w)){alert('יש להזין שבוע');return;}
+    d=parseInt($('evD').value)||0;
+    const lmp=getLmp(); const dt=new Date(lmp); dt.setDate(dt.getDate()+(w*7+d));
+    date=dt.toISOString().slice(0,10); byWeek=true;
+  } else {
+    date=$('evDate').value;
+    if(!date){alert('יש לבחור תאריך');return;}
+  }
+  const n=$('evN').value.trim();
   let evs=getEvents();
-  if(editId){ const e=evs.find(x=>x.id===editId); Object.assign(e,{t,w,d,n:$('evN').value.trim()}); }
-  else { evs.push({id:Date.now()+'',t,w,d,n:$('evN').value.trim()}); }
+  if(editId){
+    const e=evs.find(x=>x.id===editId);
+    Object.assign(e,{t,date,n,byWeek}); 
+    if(byWeek){ e.w=w; e.d=d; } else { delete e.w; delete e.d; }
+  } else {
+    const obj={id:Date.now()+'',t,date,n,byWeek};
+    if(byWeek){ obj.w=w; obj.d=d; }
+    evs.push(obj);
+  }
   setEvents(evs); closeEvent(); render();
 }
 function delEvent(id){ if(confirm('למחוק אירוע זה?')){ setEvents(getEvents().filter(x=>x.id!==id)); render(); } }
