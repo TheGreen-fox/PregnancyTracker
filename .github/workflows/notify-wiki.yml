@@ -1,0 +1,35 @@
+# Drop this into each project repo at .github/workflows/notify-wiki.yml
+#
+# On every push to main it tells TheGreen_Wiki that this repo changed, so the
+# wiki regenerates this project's page. This is the "every merge to main updates
+# the wiki" path.
+#
+# One secret per repo: WIKI_WRITE_TOKEN - the same fine-grained PAT used by the
+# wiki's push step (Contents: Read+Write on TheGreen-fox/TheGreen_Wiki only).
+# The same value is stored as a secret in each project repo.
+
+name: notify-wiki
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tell the wiki this repo changed
+        env:
+          GH_TOKEN: ${{ secrets.WIKI_WRITE_TOKEN }}
+          REPO: ${{ github.event.repository.name }}
+        run: |
+          # Harmless no-op until the WIKI_WRITE_TOKEN secret is added to this repo.
+          if [ -z "$GH_TOKEN" ]; then
+            echo "WIKI_WRITE_TOKEN not set - skipping wiki notify."
+            exit 0
+          fi
+          gh api -X POST repos/TheGreen-fox/TheGreen_Wiki/dispatches \
+            -f event_type=project-updated \
+            -f "client_payload[repo]=${REPO}"
